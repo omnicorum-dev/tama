@@ -252,18 +252,8 @@ fs::path find_tasks_directory(fs::path p) {
 }
 
 fs::path find_task(const fs::path& tasksPath, u64 uid) {
-    return tasksPath / std::to_string(uid) / "task.txt";
-
-    string uid_string = std::to_string(uid);
-
-    fs::path taskPath = tasksPath / uid_string;
-    if (fs::exists(taskPath)) {
-        fs::path task = taskPath / "task.txt";
-        if (fs::exists(task)) {
-            return task;
-        }
-    }
-    return {};
+    fs::path taskPath = tasksPath / std::to_string(uid) / "task.txt";
+    return fs::exists(taskPath) ? taskPath : fs::path{};
 }
 
 void list_tasks(fs::path tasksPath, const char* expr[], int argc) {
@@ -405,7 +395,18 @@ void create_new_task() {
 
 int main(int argc, const char* argv[]) {
     if (argc < 2) {
-        println("Usage: ./tama [init] | [find]");
+        println("Usage: ./tama (cmd) [args]");
+        println("Commands:");
+        println("    init");
+        println("    new");
+        println("    ls [expression]");
+        println("    edit <uid>");
+        println("    more <uid>");
+        println("    status <uid> <open/closed>");
+        println("    close <uid>");
+        println("    open <uid>");
+        println("    tag <uid> <tag>");
+        println("    untag <tag>");
         return 1;
     }
 
@@ -438,6 +439,10 @@ int main(int argc, const char* argv[]) {
     }
 
     else if (argv[1] == string("more")) {
+        if (argc < 3) {
+            LOG_ERROR("Usage: tama more <uid>");
+            return 1;
+        }
         // Get UID from command arguments
         u64 value = 0;
         try {
@@ -465,6 +470,10 @@ int main(int argc, const char* argv[]) {
     }
 
     else if (argv[1] == string("status")) {
+        if (argc < 4) {
+            LOG_ERROR("Usage: tama status <uid> <open/closed>");
+            return 1;
+        }
         // Get UID from command arguments
         u64 value = 0;
         try {
@@ -488,12 +497,227 @@ int main(int argc, const char* argv[]) {
         // load task file into task struct
         task t = make_task(taskPath);
 
-        if (argv[2] == string("open")) {
+        if (argv[3] == string("open")) {
             t.isOpen = true;
         } else {
             t.isOpen = false;
         }
 
+        create_task_file(t);
+    }
+
+    else if (argv[1] == string("close")) {
+        if (argc < 3) {
+            LOG_ERROR("Usage: tama close <uid>");
+            return 1;
+        }
+
+        u64 value = 0;
+        try {
+            value = std::stoull(argv[2]);
+        } catch (const std::exception& e) {
+            LOG_ERROR("Invalid number: {}", e.what());
+            return 1;
+        }
+
+        const fs::path tasksPath = find_tasks_directory(fs::current_path());
+        if (tasksPath.empty()) {
+            LOG_ERROR("Tasks folder not found.");
+            return 1;
+        }
+
+        const fs::path taskPath = find_task(tasksPath, value);
+        if (taskPath.empty()) {
+            LOG_ERROR("Task not found.");
+            return 1;
+        }
+
+        task t = make_task(taskPath);
+        t.isOpen = false;
+        create_task_file(t);
+        println("Task {} marked as closed.", value);
+    }
+
+    else if (argv[1] == string("open")) {
+        if (argc < 3) {
+            LOG_ERROR("Usage: tama open <uid>");
+            return 1;
+        }
+
+        u64 value = 0;
+        try {
+            value = std::stoull(argv[2]);
+        } catch (const std::exception& e) {
+            LOG_ERROR("Invalid number: {}", e.what());
+            return 1;
+        }
+
+        const fs::path tasksPath = find_tasks_directory(fs::current_path());
+        if (tasksPath.empty()) {
+            LOG_ERROR("Tasks folder not found.");
+            return 1;
+        }
+
+        const fs::path taskPath = find_task(tasksPath, value);
+        if (taskPath.empty()) {
+            LOG_ERROR("Task not found.");
+            return 1;
+        }
+
+        task t = make_task(taskPath);
+        t.isOpen = true;
+        create_task_file(t);
+        println("Task {} marked as open.", value);
+    }
+
+    else if (argv[1] == string("tag")) {
+        if (argc < 4) {
+            LOG_ERROR("Usage: tama tag <uid> <tag>");
+            return 1;
+        }
+
+        u64 value = 0;
+        try {
+            value = std::stoull(argv[2]);
+        } catch (const std::exception& e) {
+            LOG_ERROR("Invalid number: {}", e.what());
+            return 1;
+        }
+
+        const fs::path tasksPath = find_tasks_directory(fs::current_path());
+        if (tasksPath.empty()) {
+            LOG_ERROR("Tasks folder not found.");
+            return 1;
+        }
+
+        const fs::path taskPath = find_task(tasksPath, value);
+        if (taskPath.empty()) {
+            LOG_ERROR("Task not found.");
+            return 1;
+        }
+
+        task t = make_task(taskPath);
+        string newTag = argv[3];
+
+        if (t.has_tag(newTag)) {
+            LOG_WARN("Task already has tag '{}'.", newTag);
+            return 0;
+        }
+
+        t.tags.emplace_back(newTag);
+        create_task_file(t);
+        println("Added tag '{}' to task {}.", newTag, value);
+    }
+
+    else if (argv[1] == string("untag")) {
+        if (argc < 4) {
+            LOG_ERROR("Usage: tama untag <uid> <tag>");
+            return 1;
+        }
+
+        u64 value = 0;
+        try {
+            value = std::stoull(argv[2]);
+        } catch (const std::exception& e) {
+            LOG_ERROR("Invalid number: {}", e.what());
+            return 1;
+        }
+
+        const fs::path tasksPath = find_tasks_directory(fs::current_path());
+        if (tasksPath.empty()) {
+            LOG_ERROR("Tasks folder not found.");
+            return 1;
+        }
+
+        const fs::path taskPath = find_task(tasksPath, value);
+        if (taskPath.empty()) {
+            LOG_ERROR("Task not found.");
+            return 1;
+        }
+
+        task t = make_task(taskPath);
+        string removeTag = argv[3];
+
+        auto it = std::find(t.tags.begin(), t.tags.end(), removeTag);
+        if (it == t.tags.end()) {
+            LOG_WARN("Task does not have tag '{}'.", removeTag);
+            return 0;
+        }
+
+        t.tags.erase(it);
+        create_task_file(t);
+        println("Removed tag '{}' from task {}.", removeTag, value);
+    }
+
+    else if (argv[1] == string("edit")) {
+        if (argc < 3) {
+            LOG_ERROR("Usage: tama edit <uid>");
+            return 1;
+        }
+
+        u64 value = 0;
+        try {
+            value = std::stoull(argv[2]);
+        } catch (const std::exception& e) {
+            LOG_ERROR("Invalid number: {}", e.what());
+            return 1;
+        }
+
+        const fs::path tasksPath = find_tasks_directory(fs::current_path());
+        if (tasksPath.empty()) {
+            LOG_ERROR("Tasks folder not found.");
+            return 1;
+        }
+
+        const fs::path taskPath = find_task(tasksPath, value);
+        if (taskPath.empty()) {
+            LOG_ERROR("Task not found.");
+            return 1;
+        }
+
+        task t = make_task(taskPath);
+
+        println("Editing task {} (press Enter to keep current value)\n", value);
+
+        string s;
+
+        print("Task name [{}]: ", t.name);
+        std::getline(std::cin, s);
+        if (!s.empty()) t.name = s;
+
+        print("Task priority [{}]: ", t.priority);
+        std::getline(std::cin, s);
+        if (!s.empty()) {
+            try {
+                t.priority = std::stoi(s);
+            } catch (const std::exception& e) {
+                LOG_ERROR("Invalid number: {}", e.what());
+                return 1;
+            }
+        }
+
+        println("Current tags: {}", vectorToString(t.tags));
+        println("Enter new tags ('end' when done, leave blank to keep current):");
+        std::getline(std::cin, s);
+        if (!s.empty()) {
+            t.tags.clear();
+            t.tags.emplace_back(s);
+            while (std::getline(std::cin, s)) {
+                if (s == "end") break;
+                t.tags.emplace_back(s);
+            }
+        } else {
+            // drain the 'end' sentinel so stdin stays clean
+            while (std::getline(std::cin, s)) {
+                if (s == "end") break;
+            }
+        }
+
+        print("Task description [{}]: ", t.description);
+        std::getline(std::cin, s);
+        if (!s.empty()) t.description = s;
+
+        println("\n{}", t);
         create_task_file(t);
     }
 
