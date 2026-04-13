@@ -1,0 +1,13 @@
+20260412185745
+Example task
+20
+closed
+bug,video,graphics,logging
+
+
+20260412185745                    // unique ID (year, month, day, hour, min, sec)
+Example task                      // task name / brief description
+20                                // priority (higher number = higher priority)
+bug,video,graphics,logging     // (comma delimited?) list of tags
+
+More description, more detailed information goes here.
