@@ -1,6 +1,6 @@
 # tama
 
-A minimal command-line task manager. Tasks are stored as plain text files on disk — no database, no daemon, no sync service. Put your `TASKS/` folder anywhere (including a git repo or a synced folder) and it just works.
+A minimal command-line task manager. Tasks are stored as plain text files on disk so you don't have to rely on github.
 
 ---
 
@@ -9,21 +9,25 @@ A minimal command-line task manager. Tasks are stored as plain text files on dis
 **Requirements**
 
 - C++17 compiler (GCC 9+, Clang 10+, or MSVC 2019+)
-- CMake 3.15+ (or build manually with a single compiler invocation)
+- CMake 3.15+ (or build manually)
 
 **With CMake**
 
 ```sh
-git clone https://github.com/yourname/tama
+git clone https://github.com/omnicorum-dev/tama
 cd tama
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-The binary ends up at `build/tama`. Copy it somewhere on your `PATH`:
+The binary ends up at `build/tama`. Copy it somewhere on your `PATH`, or symlink it so you can pull any updates and have them automatically reflect:
 
 ```sh
+# copy to path
 cp build/tama /usr/local/bin/tama
+
+# symlink
+ln -s build/tama /usr/local/bin/tama
 ```
 
 **Without CMake**
@@ -171,6 +175,7 @@ on valid tokens.
 ```
 
 Because tasks are plain files you can edit them by hand, diff them in git, grep across them, or write your own tooling on top.
+Additionally, you can put any related files in the folder next to the `task.txt` to keep everything together.
 
 ---
 
